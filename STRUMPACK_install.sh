@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Set urls for packages
-STRUMPACK=http://portal.nersc.gov/project/sparse/strumpack/STRUMPACK-sparse-1.1.1.tar.gz
+STRUMPACK=https://github.com/pghysels/STRUMPACK.git
 METIS=http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/metis-5.1.0.tar.gz
 OMPMETIS=http://glaros.dtc.umn.edu/gkhome/fetch/sw/metis/mt-metis-0.6.0.tar.gz
 PARMETIS=http://glaros.dtc.umn.edu/gkhome/fetch/sw/parmetis/parmetis-4.0.3.tar.gz
@@ -14,6 +14,8 @@ SCALAPACK=http://www.netlib.org/scalapack/scalapack_installer.tgz
 OPENBLAS=http://github.com/xianyi/OpenBLAS/archive/v0.2.20.tar.gz
 CMAKE=https://cmake.org/files/v3.9/
 OPENMPI=https://www.open-mpi.org/software/ompi/v2.1/downloads/openmpi-2.1.1.tar.gz
+#BLACS=http://www.netlib.org/blacs/mpiblacs.tgz
+BLACSPATCH=http://www.netlib.org/blacs/mpiblacs-patch03.tgz
 
 # Create directory structure
 if [ ! -d ./downloads ]; then
@@ -30,10 +32,10 @@ pushd . >/dev/null
 cd downloads
 
 # Acquire STRUMPACK-sparse and all dependencies
-if [ ! -e STRUMPACK.tar.gz ]; then
+if [ ! -d ../deps/STRUMPACK ]; then
   echo "Downloading STRUMPACK"
-  curl -L $STRUMPACK -o STRUMPACK.tar.gz
-  tar xvf STRUMPACK.tar.gz -C ../deps
+  git clone $STRUMPACK
+  cp -Rf STRUMPACK ../deps
 fi
 
 # METIS v5.1.0 nested dissection
@@ -120,6 +122,16 @@ if [ ! -e SCALAPACK.tar.gz ]; then
   tar xvf SCALAPACK.tar.gz -C ../deps
 fi
 
+# BLACS: 
+if [ ! -e BLACS.tar.gz ]; then
+  echo "Downloading BLACS"
+  curl -L $BLACS -o BLACS.tar.gz
+  tar xvf BLACS.tar.gz -C ../deps
+  curl -L $BLACSPATCH -o BLACSPATCH.tar.gz
+  tar xvf BLACSPATCH.tar.gz -C ../deps
+fi
+
+
 popd > /dev/null
 pushd . > /dev/null;
 
@@ -151,6 +163,7 @@ cd ./metis-5.1.0;
 if [ ! -e Makefile ]; then
   make config prefix=$INSTALL_DIR
 fi
+make config shared=1 cc=gcc
 make -j$(echo ${proc}) && make install
 cd ..
 
@@ -171,10 +184,13 @@ rm ./Makefile.inc.bak
 make scotch -j$(echo ${proc}) && make ptscotch -j$(echo ${proc}) && make install
 cd ..
 
+# Install OpenBLAS; MKL might be a good option too
 cd ./OpenBLAS-0.2.20
 make -j$(echo ${proc}) && make PREFIX=$INSTALL_DIR install
 cd ..
 
+#Manual install of LAPACK may not be needed if SCALAPACK can acquire all the dependencies
+if false; then
 pushd . > /dev/null;
 mkdir lapack-sandbox
 mv ./lapack-3.7.1 ./lapack-sandbox
@@ -183,8 +199,9 @@ mkdir build; cd build;
 ../../../builds/bin/cmake ../lapack-3.7.1 -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR
 make -j$(echo ${proc}) && make install
 popd > /dev/null
+fi
 
-if [ false ]; then
+if false ; then
 cd ./scalapack-2.0.2
 cp SLmake.inc.example SLmake.inc
 mkdir build; cd build
@@ -193,23 +210,15 @@ make -j$(echo ${proc}) && make install
 cd ../..
 else 
 cd scalapack_installer
-python ./setup.py --downall --mpibindir=$INSTALL_DIR/bin --prefix=$INSTALL_DIR --makecmd="make -j$(echo ${proc})"
+python ./setup.py --downall --mpibindir=$INSTALL_DIR/bin --prefix=$INSTALL_DIR
+make -j$(echo ${proc}) && make install
 fi
 
-cd strumpack-sparse
+###
+# Build STRUMPACK: Note, modern gcc needed; will not build with 4.4.x
+#
+cd STRUMPACK
 mkdir build && cd build
-cmake ../strumpack-sparse -DCMAKE_BUILD_TYPE=Debug \
--DCMAKE_INSTALL_PREFIX=$INSTALL_DIR \
--DCMAKE_CXX_COMPILER=$(which c++) \ # this and below are optional, 
--DCMAKE_C_COMPILER=$INSTALL_DIR/bin/mpicc \ # CMake will try to autodetect 
--DCMAKE_Fortran_COMPILER=$INSTALL_DIR/bin/mpifort \ 
--DSCALAPACK_LIBRARIES="$INSTALL_DIR/lib/libscalapack.a;/path/to/blacs/libblacs.a" \ 
--DMETIS_INCLUDES=$INSTALL_DIR/include \
--DMETIS_LIBRARIES=$INSTALL_DIR/lib/libmetis.a \ 
--DPARMETIS_INCLUDES=$INSTALL_DIR/include \ 
--DPARMETIS_LIBRARIES=$INSTALL_DIR/lib/libparmetis.a \ 
--DSCOTCH_INCLUDES=$INSTALL_DIR/include \ 
--DSCOTCH_LIBRARIES="$INSTALL_DIR/lib/libscotch.a;$INSTALL_DIR/lib/libscotcherr.a;$INSTALL_DIR/lib/libptscotch.a;$INSTALL_DIR/lib/libptscotcherr.a"
+$INSTALL_DIR/bin/cmake ../ -DCMAKE_BUILD_TYPE=Debug -DCMAKE_INSTALL_PREFIX=$INSTALL_DIR -DCMAKE_CXX_COMPILER=$INSTALL_DIR/bin/mpic++ -DCMAKE_C_COMPILER=$INSTALL_DIR/bin/mpicc -DCMAKE_Fortran_COMPILER=$INSTALL_DIR/bin/mpifort -DSCALAPACK_LIBRARIES="$INSTALL_DIR/lib/libscalapack.a" -DMETIS_INCLUDES=$INSTALL_DIR/include -DMETIS_LIBRARIES=$INSTALL_DIR/lib/libmetis.a -DPARMETIS_INCLUDES=$INSTALL_DIR/include -DPARMETIS_LIBRARIES=$INSTALL_DIR/lib/libparmetis.a -DSCOTCH_INCLUDES=$INSTALL_DIR/include -DSCOTCH_LIBRARIES="$INSTALL_DIR/lib/libscotch.a;$INSTALL_DIR/lib/libscotcherr.a;$INSTALL_DIR/lib/libptscotch.a;$INSTALL_DIR/lib/libptscotcherr.a"
 make -j$(echo ${proc}) && make install
 cd ../..
-
