@@ -1,0 +1,61 @@
+#!/bin/bash
+set -e
+
+# Setup environment
+cat > env.sh <<EOF
+# variables needed to run psana2
+export PSANA_PREFIX=$PWD/lcls2
+export PATH=\$PSANA_PREFIX/install/bin:${PATH}
+export PYTHONPATH=\$PSANA_PREFIX/install/lib/python3.7/site-packages
+# for procmgr
+export TESTRELDIR=\$PSANA_PREFIX/install
+
+# variables needed for conda
+module load python/3.7-anaconda-2019.07
+conda env list | grep psana2_py37
+if [ $? -eq 0 ] 
+then
+  source /usr/common/software/python/3.7-anaconda-2019.07/etc/profile.d/conda.sh
+  conda activate psana2_py37
+fi
+EOF
+
+source env.sh
+
+# Clean up any previous installs
+rm -rf lcls2
+conda env list | grep psana2_py37
+if [ $? -eq 0 ] 
+then
+  source /usr/common/software/python/3.7-anaconda-2019.07/etc/profile.d/conda.sh
+  conda activate base
+  conda env remove --name psana2_py37
+fi
+
+# Create a new conda env from Nersc base
+conda env create -f env_create.yaml
+source /usr/common/software/python/3.7-anaconda-2019.07/etc/profile.d/conda.sh
+conda activate psana2_py37
+
+# Build psana
+git clone https://github.com/slac-lcls/lcls2.git
+pushd $PSANA_PREFIX
+    module swap PrgEnv-intel PrgEnv-gnu
+    CC=/opt/gcc/7.3.0/bin/gcc CXX=/opt/gcc/7.3.0/bin/g++ ./build_all.sh -d
+popd
+
+# Remove mpi4py from psana conda env and rebuild mpi4py with NERSC cray mpich
+conda uninstall -y mpi4py
+wget https://bitbucket.org/mpi4py/mpi4py/downloads/mpi4py-3.0.0.tar.gz
+tar zxvf mpi4py-3.0.0.tar.gz
+module unload craype-hugepages2M
+pushd mpi4py-3.0.0
+    python setup.py build --mpicc="$(which cc) -shared"
+    python setup.py install
+popd
+
+echo
+echo "Done. Please run 'source env.sh' to use this build."
+
+
+

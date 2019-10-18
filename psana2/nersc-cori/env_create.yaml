@@ -1,0 +1,45 @@
+name: psana2_py37
+channels:
+  - lcls-ii
+  - pydm-tag
+  - defaults
+  - conda-forge
+dependencies:
+  - python=3.7
+  - cmake
+  - numpy
+  - mpi4py   # psana packages (legion is optional)
+  - legion
+  - cython
+  - matplotlib
+  - pytest
+  - mongodb
+  - pymongo
+  - curl
+  - bitstruct
+  - mypy_extensions
+  - pyzmq
+  - pyqt
+  - pyqtgraph
+  - psmon
+  - pydm
+  - dill
+  - flake8
+  - h5py
+  - krtc
+  - roentdek
+  - cpsw     # daq packages
+  - p4p
+  - libfabric
+  - rapidjson
+  - transitions
+  - ipython
+  - requests
+  - ipdb
+  - prometheus-cpp
+  - amityping
+  - mypy
+  - rogue-ne
+  - bluesky
+  - ophyd
+  - pcieapps
