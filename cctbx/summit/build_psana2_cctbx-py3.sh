@@ -96,7 +96,7 @@ CC=$OMPI_CC MPICC=mpicc pip install -v --no-binary mpi4py mpi4py
 # Install Psana
 git clone https://github.com/slac-lcls/lcls2.git $LCLS2_DIR
 pushd $LCLS2_DIR
-CC=/sw/summit/gcc/7.4.0/bin/gcc CXX=/sw/summit/gcc/7.4.0/bin/g++ ./build_all.sh -d -p install
+CC=/sw/summit/gcc/7.4.0/bin/gcc CXX=/sw/summit/gcc/7.4.0/bin/g++ ./build_all.sh -d
 popd
 
 # Install CCTBX wtih DIALS (locale needs to be set)
@@ -106,11 +106,17 @@ pip install mrcfile
 pip install orderedset
 pip install procrunner
 mkdir -p $CCTBX_PREFIX
-cd $CCTBX_PREFIX
-wget "https://raw.githubusercontent.com/cctbx/cctbx_project/master/libtbx/auto_build/bootstrap.py"
-# this $CONDA_PREFIX is for the myenv environment, not $PWD/conda
-python bootstrap.py hot update build --builder=dials --use-conda $CONDA_PREFIX --nproc=16
-cd -
+pushd $CCTBX_PREFIX
+    wget "https://raw.githubusercontent.com/cctbx/cctbx_project/master/libtbx/auto_build/bootstrap.py"
+    # this $CONDA_PREFIX is for the myenv environment, not $PWD/conda
+    python bootstrap.py hot update build --builder=dials --use-conda $CONDA_PREFIX --nproc=16
+    pushd $CCTBX_PREFIX/modules/cctbx_project
+        git checkout psana2-det
+    popd
+    pushd $CCTBX_PREFIX/build
+        make -j 16
+    popd
+popd
 
 echo
 echo "Done. Please run 'source env.sh' to use this build."
