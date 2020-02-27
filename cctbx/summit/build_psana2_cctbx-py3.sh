@@ -110,12 +110,6 @@ pushd $CCTBX_PREFIX
     wget "https://raw.githubusercontent.com/cctbx/cctbx_project/master/libtbx/auto_build/bootstrap.py"
     # this $CONDA_PREFIX is for the myenv environment, not $PWD/conda
     python bootstrap.py hot update build --builder=dials --use-conda $CONDA_PREFIX --nproc=16
-    pushd $CCTBX_PREFIX/modules/cctbx_project
-        git checkout psana2-det
-    popd
-    pushd $CCTBX_PREFIX/build
-        make -j 16
-    popd
 popd
 
 echo
