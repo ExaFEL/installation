@@ -1,6 +1,6 @@
 #!/bin/bash
 #BSUB -P CHM137
-#BSUB -W 00:15
+#BSUB -W 00:45
 #BSUB -nnodes 2
 #BSUB -alloc_flags gpumps
 #BSUB -J RunCctbx
